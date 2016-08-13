@@ -1,0 +1,170 @@
+doctype html
+html(lang='en')
+  head
+    meta(charset='utf-8')
+    title= pageTitle
+    link(rel='short icon', href=url_for('main.static', filename='favicon.ico'))
+    link(rel='stylesheet', href='//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css')
+    link(rel='stylesheet', href=url_for('main.static', filename='css/home.css'))
+    link(rel='stylesheet', href='//cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.6.4/css/bootstrap-datepicker.css')
+  body
+    .container-fluid
+      .row
+        nav.navbar.navbar-default
+          .container-fluid
+            .navbar-header
+              button.navbar-toggle.collapsed(type='button', data-toggle='collapse', data-target='#bs-example-navbar-collapse-1', aria-expanded='false')
+                span.sr-only Toggle navigation
+                span.icon-bar
+                span.icon-bar
+                span.icon-bar
+              a.navbar-brand(href=url_for('main.main_page')) Service Fusion
+            ul.nav.navbar-nav.navbar-right
+              li.dropdown
+                a.dropdown-toggle(href='#', data-toggle='dropdown', role='button', aria-haspopup='true', aria-expanded='false') Add User
+                  span.caret
+                ul.dropdown-menu
+                  li
+                    form#add-user.form(action='#')
+                      = userform.hidden_tag()
+                      .form-group
+                        = userform.first_name.label
+                        = userform.first_name(class='form-control')
+                      .form-group
+                        = userform.last_name.label
+                        = userform.last_name(class='form-control')
+                      .form-group
+                        = userform.date_of_birth.label
+                        = userform.date_of_birth(id='datepicker', class='form-control')
+                      .form-group
+                        = userform.zip_code.label
+                        = userform.zip_code(class='form-control')
+                      input#add-button.btn(type='button', value='Submit')
+      .row
+        .container-fluid
+          .row
+            section.main
+              h1 Personnel Tracker
+              ul#users
+              input#load-more.btn.btn-warning(type='button', value='Load More')
+        #side-panel
+          form#update-user.form(action='#')
+            = updateform.hidden_tag()
+            input(type='hidden', name='id', value='')
+            .form-group
+              = updateform.first_name.label
+              = updateform.first_name(class='form-control')
+            .form-group
+              = updateform.last_name.label
+              = updateform.last_name(class='form-control')
+            .form-group
+              = updateform.date_of_birth.label
+              = updateform.date_of_birth(id='datepicker2', class='form-control')
+            .form-group
+              = updateform.zip_code.label
+              = updateform.zip_code(class='form-control')
+            input#update-button.btn.btn-success(type='button', value='Update')
+            input#delete-button.btn.btn-danger(type='button', value='Remove User')
+      footer.footer
+        .container
+          span Blank Footer
+    script(src='//code.jquery.com/jquery-2.2.1.min.js')
+    script(src='//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js')
+    script(src='//cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.6.4/js/bootstrap-datepicker.min.js')
+    script(type='text/javascript').
+      $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
+    script.
+      $(function() {
+        page = 1;
+        get_users(page);
+        $('#datepicker').datepicker({
+          format: 'yyyy-mm-dd',
+        });
+        $('#add-button').on('click', function() {
+          url_params = $('#add-user').serialize();
+          csrftoken = url_params.split('&')[0].split('=')[1]
+          $.ajaxSetup({
+            beforeSend: function(xhr, settings) {
+              if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                xhr.setRequestHeader("X-CSRFToken", csrftoken)
+              }
+            }
+          })
+          $.ajax({
+            type: "POST",
+            url:  $SCRIPT_ROOT + '/user/',
+            data: url_params,
+            success: function(data) {
+              $('#users').append('<li data-id='+data['id']+'>'+data['last_name']+', '+data['first_name']+'</li>');
+              $('#add-user')[0].reset();
+            },
+            error: function(error) {
+              console.log(error);
+            }
+          });
+        });
+        $('#users').on('click', 'li', function() {
+          $.getJSON($SCRIPT_ROOT + '/user/'+$(this).data('id'), {}, function(data) {
+            for(var field in data.user){
+              $('[name="'+field+'"]', '#update-user').val(data.user[field]);
+            }
+            $('#side-panel').show().animate({'margin-right': '0px'})
+          });
+        });
+        $('#delete-button').on('click', function(){
+          user_id = $('[name="id"]', '#update-user').val();
+          $.ajax({
+            type: "DELETE",
+            url:  $SCRIPT_ROOT + '/user/'+user_id,
+            success: function(data) {
+              $('[data-id="'+user_id+'"]', '#users').remove();
+              console.log('Booped: '+user_id);
+              $('#update-user')[0].reset();
+              $('#side-panel').animate({'margin-right': '-300px'}, function(){$(this).hide()})
+            },
+            error: function(error) {
+              console.log(error);
+            }
+          });
+        });
+      });
+      $('#update-button').on('click', function(){
+          user_id = $('[name="id"]', '#update-user').val();
+          url_params = $('#update-user').serialize();
+          csrftoken = url_params.split('&')[0].split('=')[1]
+          $.ajaxSetup({
+            beforeSend: function(xhr, settings) {
+              if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                xhr.setRequestHeader("X-CSRFToken", csrftoken)
+              }
+            }
+          })
+          $.ajax({
+            type: "PUT",
+            url:  $SCRIPT_ROOT + '/user/'+user_id,
+            data: url_params,
+            success: function(data) {
+              $('[data-id="'+user_id+'"]', '#users').text(data.user['last_name']+', '+data.user['first_name']);
+              console.log('Updated: '+user_id);
+            },
+            error: function(error) {
+              console.log(error);
+            }
+          });
+      });
+      $('#load-more').on('click', function() {
+        get_users(page);
+      });
+      var get_users = function() {
+        $.getJSON($SCRIPT_ROOT + '/user/', {'page': page}, function(data) {
+          $.each(data.message, function(idx, val) {
+            $('#users').append('<li data-id='+val['id']+'>'+val['last_name']+', '+val['first_name']+'</li>');
+          });
+          console.log(data.next_page)
+          if(data.next_page == true) {
+            page += 1;
+          }else{
+            $('#load-more').attr('disabled', true);
+          };
+        });
+      }
