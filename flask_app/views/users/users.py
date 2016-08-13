@@ -71,7 +71,8 @@ class UserAPI(MethodView):
     else:
       message = {
         'status': 400,
-        'message': 'User creation failed'
+        'message': 'User creation failed',
+        'errors': form.errors
       }
       resp = jsonify(message)
       resp.status_code = 400
@@ -141,7 +142,8 @@ class UserAPI(MethodView):
         else:
           message = {
             'status': 400,
-            'message': 'Form Fields Not Validated Correctly'
+            'message': 'Form Fields Not Validated Correctly',
+            'errors': form.errors
           }
           resp = jsonify(message)
           resp.status_code = 400

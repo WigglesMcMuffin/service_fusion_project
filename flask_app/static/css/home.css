@@ -82,12 +82,22 @@ body {
 section.main {
 }
 
+.bad-field {
+  border: 1px solid red;
+}
+
 #side-panel {
   position: fixed;
   right: 0;
-  top: 30px;
-  width: 300px;
-  margin-right: -300px;
-  background: white;
+  top: 60px;
+  width: 320px;
+  margin-right: -320px;
+  background: #f8f8f8;
   padding: 20px;
+  border: 1px solid #e7e7e7;
+  border-right: 0;
+}
+
+#update-form {
+  margin: 0 10px;
 }

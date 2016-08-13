@@ -5,6 +5,8 @@ html(lang='en')
     title= pageTitle
     link(rel='short icon', href=url_for('main.static', filename='favicon.ico'))
     link(rel='stylesheet', href='//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css')
+    link(rel='stylesheet', href='//netdna.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css')
+    link(rel='stylesheet', href='//cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.3/toastr.min.css')
     link(rel='stylesheet', href=url_for('main.static', filename='css/home.css'))
     link(rel='stylesheet', href='//cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.6.4/css/bootstrap-datepicker.css')
   body
@@ -48,41 +50,52 @@ html(lang='en')
               ul#users
               input#load-more.btn.btn-warning(type='button', value='Load More')
         #side-panel
-          form#update-user.form(action='#')
-            = updateform.hidden_tag()
-            input(type='hidden', name='id', value='')
-            .form-group
-              = updateform.first_name.label
-              = updateform.first_name(class='form-control')
-            .form-group
-              = updateform.last_name.label
-              = updateform.last_name(class='form-control')
-            .form-group
-              = updateform.date_of_birth.label
-              = updateform.date_of_birth(id='datepicker2', class='form-control')
-            .form-group
-              = updateform.zip_code.label
-              = updateform.zip_code(class='form-control')
-            input#update-button.btn.btn-success(type='button', value='Update')
-            input#delete-button.btn.btn-danger(type='button', value='Remove User')
+          .container-fluid
+            .row
+              a#close-sidebar.pull-right(href='#')
+                span.glyphicon.glyphicon-remove(aria-hidden="true")
+            .row
+              form#update-user.form(action='#')
+                = updateform.hidden_tag()
+                input(type='hidden', name='id', value='')
+                .form-group
+                  = updateform.first_name.label
+                  = updateform.first_name(class='form-control')
+                .form-group
+                  = updateform.last_name.label
+                  = updateform.last_name(class='form-control')
+                .form-group
+                  = updateform.date_of_birth.label
+                  = updateform.date_of_birth(id='datepicker2', class='form-control')
+                .form-group
+                  = updateform.zip_code.label
+                  = updateform.zip_code(class='form-control')
+                input#update-button.btn.btn-success(type='button', value='Update')
+                input#delete-button.btn.btn-danger(type='button', value='Remove User')
       footer.footer
         .container
-          span Blank Footer
+          span
     script(src='//code.jquery.com/jquery-2.2.1.min.js')
     script(src='//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js')
+    script(src='//cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.3/toastr.min.js')
     script(src='//cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.6.4/js/bootstrap-datepicker.min.js')
     script(type='text/javascript').
       $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
     script.
       $(function() {
         page = 1;
+        toastr.options = {
+          "newestOnTop": false,
+          "positionClass": "toast-bottom-left",
+        };
         get_users(page);
         $('#datepicker').datepicker({
           format: 'yyyy-mm-dd',
         });
         $('#add-button').on('click', function() {
+          $('input', '#add-user').removeClass('bad-field');
           url_params = $('#add-user').serialize();
-          csrftoken = url_params.split('&')[0].split('=')[1]
+          csrftoken = url_params.split('&')[0].split('=')[1];
           $.ajaxSetup({
             beforeSend: function(xhr, settings) {
               if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
@@ -97,18 +110,29 @@ html(lang='en')
             success: function(data) {
               $('#users').append('<li data-id='+data['id']+'>'+data['last_name']+', '+data['first_name']+'</li>');
               $('#add-user')[0].reset();
+              toastr.success('User added succesfully');
             },
             error: function(error) {
-              console.log(error);
+              errors = JSON.parse(error['responseText'])['errors'];
+              $.each(errors, function(idx, val) {
+                toastr.error($('label[for="'+idx+'"]', '#add-user').text()+': '+val[0]);
+                $('input[name="'+idx+'"]', '#add-user').addClass('bad-field');
+              });
             }
           });
         });
         $('#users').on('click', 'li', function() {
-          $.getJSON($SCRIPT_ROOT + '/user/'+$(this).data('id'), {}, function(data) {
+          $user = $(this);
+          $.getJSON($SCRIPT_ROOT + '/user/'+$user.data('id'), {}, function(data) {
             for(var field in data.user){
               $('[name="'+field+'"]', '#update-user').val(data.user[field]);
             }
             $('#side-panel').show().animate({'margin-right': '0px'})
+          }).fail(function(jqxhr, textStatus, error) {
+            if(error == "NOT FOUND") {
+              toastr.warning('User does not exist or has been removed');
+              $user.remove();
+            }
           });
         });
         $('#delete-button').on('click', function(){
@@ -118,9 +142,9 @@ html(lang='en')
             url:  $SCRIPT_ROOT + '/user/'+user_id,
             success: function(data) {
               $('[data-id="'+user_id+'"]', '#users').remove();
-              console.log('Booped: '+user_id);
               $('#update-user')[0].reset();
-              $('#side-panel').animate({'margin-right': '-300px'}, function(){$(this).hide()})
+              $('#side-panel').animate({'margin-right': '-320px'}, function(){$(this).hide()})
+              toastr.warning('User removed successfully');
             },
             error: function(error) {
               console.log(error);
@@ -129,6 +153,7 @@ html(lang='en')
         });
       });
       $('#update-button').on('click', function(){
+          $('input', '#update-user').removeClass('bad-field');
           user_id = $('[name="id"]', '#update-user').val();
           url_params = $('#update-user').serialize();
           csrftoken = url_params.split('&')[0].split('=')[1]
@@ -145,15 +170,23 @@ html(lang='en')
             data: url_params,
             success: function(data) {
               $('[data-id="'+user_id+'"]', '#users').text(data.user['last_name']+', '+data.user['first_name']);
-              console.log('Updated: '+user_id);
+              toastr.success('User updated successfully');
             },
             error: function(error) {
-              console.log(error);
+              errors = JSON.parse(error['responseText'])['errors'];
+              $.each(errors, function(idx, val) {
+                toastr.error($('label[for="'+idx+'"]', '#update-user').text()+': '+val[0]);
+                $('input[name="'+idx+'"]', '#update-user').addClass('bad-field');
+              });
             }
           });
       });
       $('#load-more').on('click', function() {
         get_users(page);
+      });
+      $('#close-sidebar').on('click', function() {
+        $('#side-panel').animate({'margin-right': '-320px'}, function(){$(this).hide()})
+        return false;
       });
       var get_users = function() {
         $.getJSON($SCRIPT_ROOT + '/user/', {'page': page}, function(data) {
